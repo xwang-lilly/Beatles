@@ -1,5 +1,4 @@
 
-############################################ Server part#################################
 server<-function(input,output,session){
   
   exampledata <- read.csv("/lrlhps/users/c253994/ShinyApps/Beatles/BeatlesTestData.csv")
@@ -16,7 +15,7 @@ server<-function(input,output,session){
       nevents <- sum(dataM[,2]==1)
       ncensor <- sum(dataM[,3]==1)
       natrisk <- nsub-nevents-ncensor
-      tsub <- paste("(",min(dataM[,1]),", ",max(dataM[,1]),")")
+      tsub <- paste("(",min(dataM[,1]),", ",max(dataM[,1]),")",sep="")
       tevents <- paste0("(",min(dataM[dataM[,2]==1,1]),", ",max(dataM[dataM[,2]==1,1]),")")
       tcensor <- paste0("(",min(dataM[dataM[,3]==1,1]),", ",max(dataM[dataM[,3]==1,1]),")")
       tatrisk <- paste0("(",min(dataM[dataM[,2]==0&dataM[,3]==0,1]),", ",max(dataM[dataM[,2]==0&dataM[,3]==0,1]),")")
@@ -26,18 +25,23 @@ server<-function(input,output,session){
     }
   },colnames = TRUE,rownames = FALSE,digits = 0)
   
+  starttime<-eventReactive(input$submitButton, {
+    Sys.time()
+  })
+  
+  output$time1<-renderText({
+    paste(startTime())
+  })
   
   retsamples<-eventReactive(input$submitButton, {
     req(input$file)
     infile <- input$file
     dataM <- read.csv(infile$datapath)
-    
     npar_e <- input$npar_e
     npar_c <- input$npar_c
     nsample <- input$nsample
     burnin <- input$burnin
     thin <- input$thin
-    time.start<-Sys.time()
     
     if(input$enrollstatus=="Completed"){
       ner <- 0
@@ -58,7 +62,7 @@ server<-function(input,output,session){
     
     tq <- seq(0,1,length = (npar_c+1))
     tinterval_c <- c(0,quantile(dataM[dataM[,3]==1,1],tq)[-1])
-    tinterval_c[(npar_c+1)] <-  50*tinterval_c[(npar_c+1)] # Make upper bound large
+    tinterval_c[(npar_c+1)] <-  50*tinterval_c[(npar_c+1)]         
     censored <- dataM[,3]
     PS_lambda_censored <- HazardPosterior_rjags(V=censored,ttt,int=tinterval_c,parts=npar_c,N, nsample, burnin, thin)
     
@@ -95,23 +99,20 @@ server<-function(input,output,session){
       lines(density(predicted_events),col=2)
     }
     dev.off()
-    #time<-proc.time()["elapsed"]-time.start
     time.end <- Sys.time()
-    return(list(predictionsummary=predictionsummary,posterioroutput=posterioroutput,outplot=outplot,predictionplot=predictionplot,time1=time.start,time2=time.end))
+    return(list(predictionsummary=predictionsummary,posterioroutput=posterioroutput,outplot=outplot,predictionplot=predictionplot,time2=time.end))
     
   })
-
+  
+  
   output$prediction<-renderTable({
       input$submitButton
-
       isolate({
         retsamples()$predictionsummary })
     },colnames = TRUE,rownames = TRUE,digits = 0)
   
   output$predictionplot<-renderImage({
-    
     input$submitButton
-    
     isolate({
       list(src = retsamples()$predictionplot,
            contentType = 'image/png',
@@ -119,33 +120,12 @@ server<-function(input,output,session){
     })
   },deleteFile=TRUE)
   
-  # output$diagplot <- renderUI({
-  #   #input$submitButton
-  #   #style="height:600px; width:100%",
-  #   tags$iframe(src=retsamples()$outplot)
-  # })
-  
   output$downloadDiagPlot <- downloadHandler(
     filename = c('DiagnosticPlot.pdf'),
     content = function(file) {
       file.copy(retsamples()$outplot,file,overwrite = TRUE)
     }
   )
-  
-  
-  
-  # output$diagplot <- renderImage({
-  #   input$submitButton
-  #   isolate({
-  #     list(src = retsamples()$diagplot,
-  #          contentType = 'image/png',
-  #          width = "auto",
-  #          height = "auto",
-  #          alt = "This is alternate text")
-  #   })
-  # })
-  
-  
   
   output$downloadPS <- downloadHandler(
     filename = c('PosteriorResults.csv'),
@@ -161,28 +141,16 @@ server<-function(input,output,session){
     }
   )
   
-  output$time1<-renderText({
-    input$submitButton
-    paste("Algorithm started at", retsamples()$time1)
-    #isolate({
-    #   cat("This run took ",round(retsamples()$time/60,1)," minutes.")
-    #   })
-  })
+  
    output$time2<-renderText({
-     input$submitButton
-     paste("Algorithm ended at", retsamples()$time2)
-     #isolate({
-     #   cat("This run took ",round(retsamples()$time/60,1)," minutes.")
-     #   })
+     paste(retsamples()$time2)
    })
   
   output$message<-renderPrint({
-    input$submitButton
-    isolate({
-      cat("This run took",round(retsamples()$time2-retsamples()$time1,0),"seconds.")
+      paste((retsamples()$time2-startTime()))
     })
-  })
+  }
   
-}
+
   
  
