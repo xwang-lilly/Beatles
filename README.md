@@ -1,1 +1,5 @@
-# Beatles
+Beatles
+Beatles (Bayesian Events and Time Landmark Estimation Software) is a Lilly in house Shiny App updated by Xiaofei Wang and Tina Liu, which originally co-developed by Haoda Fu, Luping Zhao. 
+Currently, the planning and execution of clinical studies requires accurate prediction of key, aka "landmark" event dates (first patient enrollment, last patient visit etc.). There have been a number of different methods that are used to predict these event dates. These varying methods produce inconsistent and often inaccurate results which in turn lead to stopping and restarting of trial activities and this increases the cost and time required to execute trials.
+Beatles utilizes Bayesian statistical methods in order to provide more accurate estimates of landmark event times (e.g. LPV – Last patient visit) for the event driven studies. This improved accuracy in the predicted event times lead to better study operation, better business and resource planning.
+The Beatles application is used for planning purposes in regard to the design of clinical studies. The results from the Beatles application are not utilized for submission purposes.
