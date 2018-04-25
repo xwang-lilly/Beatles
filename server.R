@@ -1,8 +1,10 @@
 
+library(shiny)
+library(shinyjs)
+
+
 server<-function(input,output,session){
-  
   exampledata <- read.csv("/lrlhps/users/c253994/ShinyApps/Beatles/BeatlesTestData.csv")
-  
   output$datasummary<-renderTable({
     if(is.null(input$file)){
       datasummary <- data.frame(c("Total Subjects","Events","Censored","At Risk"),c("","","",""),c("","","",""))
@@ -27,11 +29,19 @@ server<-function(input,output,session){
   
   starttime<-eventReactive(input$submitButton, {
     Sys.time()
-  })
+      })
+  
+  observeEvent(input$submitButton, {
+    withBusyIndicatorServer("submitButton", {
+      if (is.numeric(input$thin)) {
+        stop("Processing...")
+      }
+      })
+      })
   
   output$time1<-renderText({
-    paste(startTime())
-  })
+    paste(starttime())
+      })
   
   retsamples<-eventReactive(input$submitButton, {
     req(input$file)
@@ -58,13 +68,13 @@ server<-function(input,output,session){
     ttt <- dataM[,1]
     N <- length(ttt)
     event <- dataM[,2]
-    PS_lambda_event <- HazardPosterior_rjags(V=event,ttt,int=tinterval_e,parts=npar_e,N, nsample, burnin, thin)
+    PS_lambda_event <- HazardPosterior_rjags(event=TRUE,V=event,ttt,int=tinterval_e,parts=npar_e,N, nsample, burnin, thin)
     
     tq <- seq(0,1,length = (npar_c+1))
     tinterval_c <- c(0,quantile(dataM[dataM[,3]==1,1],tq)[-1])
     tinterval_c[(npar_c+1)] <-  50*tinterval_c[(npar_c+1)]         
     censored <- dataM[,3]
-    PS_lambda_censored <- HazardPosterior_rjags(V=censored,ttt,int=tinterval_c,parts=npar_c,N, nsample, burnin, thin)
+    PS_lambda_censored <- HazardPosterior_rjags(event=FALSE,V=censored,ttt,int=tinterval_c,parts=npar_c,N, nsample, burnin, thin)
     
     width<-500
     height<-500
@@ -94,6 +104,8 @@ server<-function(input,output,session){
       predictionsummary <- data.frame(matrix(round(quantile(predicted_events,c(0,0.1,0.25,0.5,0.75,0.9,1)),digits = 0),nrow = 1))
       colnames(predictionsummary) <- c("MIN","10%","25%","50%","75%","90%","MAX")
       rownames(predictionsummary) <- "Predicted Events"
+      colnames(PS_lambda_event[[1]]) <-gsub("lambda","e_lambda",colnames(PS_lambda_event[[1]]))        # change column names before combination
+      colnames(PS_lambda_censored[[1]]) <-gsub("lambda","e_lambda",colnames(PS_lambda_censored[[1]]))
       posterioroutput <- cbind(predicted_events,PS_lambda_event[[1]],PS_lambda_censored[[1]])
       hist(predicted_events,main = "Density Plot of Predicted Events",freq = FALSE)
       lines(density(predicted_events),col=2)
@@ -104,6 +116,9 @@ server<-function(input,output,session){
     
   })
   
+  output$time2<-renderText({
+    paste(retsamples()$time2)
+  })
   
   output$prediction<-renderTable({
       input$submitButton
@@ -138,19 +153,20 @@ server<-function(input,output,session){
     filename = c('BeatlesTestData.csv'),
     content = function(file) {
       write.csv(exampledata, file, row.names = FALSE)
-    }
-  )
-  
-  
+    })
+    
    output$time2<-renderText({
      paste(retsamples()$time2)
    })
-  
-  output$message<-renderPrint({
-      paste((retsamples()$time2-startTime()))
+   
+  observeEvent(input$submitButton, {
+     withBusyIndicatorServer("submitButton", {
+       Sys.sleep(0.1)
+         stop("Done")
+       })
     })
   }
-  
+
 
   
  

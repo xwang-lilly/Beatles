@@ -1,49 +1,86 @@
 rm(list=ls())
 library(msm)
-
 library(rjags)
 library(coda)
 load.module("glm")
 set.seed(1234)
-
+source("helpers.R") 
 
 ###Bayesian model in JAGS###
-HazardPosterior_rjags <- function(V,ttt,int,parts,N, nsample, burnin, thin){
+HazardPosterior_rjags <- function(event,V,ttt,int,parts,N, nsample,burnin, thin){
+  if(event==TRUE) {
   model <- "
       # V[] is the vector of event indictor
-      # ttt[] is the vector of times
-      # int[] is the vector of ending time of each piece
-      data {
-        for (i in 1:N) {
-          for (k in 1:parts) {
-            # indicates event-time in interval k
-            d[i,k] <- (V[i])*step(ttt[i] - int[k])*step(int[k+1] - ttt[i])
-          }
-        }
-      }
-      model  {
-        # Make sure that the bin (piece) boundaries are defined in the data.
-        for (i in 1:N) {
-          for (k in 1:parts) {
-            # length of overlap of ttt[i] with interval k
-            delta[i,k] <- (min(ttt[i], int[k+1]) - int[k])*step(ttt[i] - int[k])
-            # the proportional hazard and piecewise exponential hazard rate lambda[k]
-            theta[i,k] <- lambda[k]
-            # define the likelihood
-            d[i,k] ~ dpois(mu[i,k])
-            mu[i,k] <- delta[i,k]*theta[i,k]
-          }
-        }
-        #priors
-        for (k in 1:parts) {
-          lambda[k] ~ dgamma(0.01, 0.01)    #allowing modify prior
-        }
-      }"
+  # ttt[] is the vector of times
+  # int[] is the vector of ending time of each piece
+  data {
+  for (i in 1:N) {
+  for (k in 1:parts) {
+  # indicates event-time in interval k
+  d[i,k] <- (V[i])*step(ttt[i] - int[k])*step(int[k+1] - ttt[i])
+  }
+  }
+  }
+  model  {
+  # Make sure that the bin (piece) boundaries are defined in the data.
+  for (i in 1:N) {
+  for (k in 1:parts) {
+  # length of overlap of ttt[i] with interval k
+  delta[i,k] <- (min(ttt[i], int[k+1]) - int[k])*step(ttt[i] - int[k])
+  # the proportional hazard and piecewise exponential hazard rate lambda[k]
+  theta[i,k] <- e_lambda[k]
+  # define the likelihood
+  d[i,k] ~ dpois(mu[i,k])
+  mu[i,k] <- delta[i,k]*theta[i,k]
+  }
+  }
+  #priors
+  for (k in 1:parts) {
+  e_lambda[k] ~ dgamma(0.01, 0.01)    #allowing modify prior
+  }
+  }"
+  }else{
+    model <- "
+      # V[] is the vector of event indictor
+    # ttt[] is the vector of times
+    # int[] is the vector of ending time of each piece
+    data {
+    for (i in 1:N) {
+    for (k in 1:parts) {
+    # indicates event-time in interval k
+    d[i,k] <- (V[i])*step(ttt[i] - int[k])*step(int[k+1] - ttt[i])
+    }
+    }
+    }
+    model  {
+    # Make sure that the bin (piece) boundaries are defined in the data.
+    for (i in 1:N) {
+    for (k in 1:parts) {
+    # length of overlap of ttt[i] with interval k
+    delta[i,k] <- (min(ttt[i], int[k+1]) - int[k])*step(ttt[i] - int[k])
+    # the proportional hazard and piecewise exponential hazard rate lambda[k]
+    theta[i,k] <- c_lambda[k]
+    # define the likelihood
+    d[i,k] ~ dpois(mu[i,k])
+    mu[i,k] <- delta[i,k]*theta[i,k]
+    }
+    }
+    #priors
+    for (k in 1:parts) {
+    c_lambda[k] ~ dgamma(0.01, 0.01)    #allowing modify prior
+    }
+    }" 
+    }
+  
   jagsData <- list("V"=V,"ttt"=ttt,"int"=int,"parts"=parts,"N"=N)
-  jagsInits <- list("lambda"=rep(0,parts))
+  if(event==TRUE) {
+    jagsInits <- list("e_lambda"=rep(0,parts))
+  }else{
+    jagsInits <- list("c_lambda"=rep(0,parts))
+  }
   m1 <- jags.model(file=textConnection(model),data=jagsData, inits=jagsInits,n.chains = 2, n.adapt=5000, quiet=FALSE)
   update(m1, n.iter=burnin)
-  samples <- coda.samples(m1, variable.names=c("lambda"), n.iter=nsample*thin, thin=thin)
+  samples <- coda.samples(m1, variable.names=ifelse(event==TRUE,"e_lambda","c_lambda"), n.iter=nsample*thin, thin=thin)
   samples
 }
 
