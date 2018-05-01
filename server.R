@@ -34,7 +34,7 @@ server<-function(input,output,session){
   observeEvent(input$submitButton, {
     withBusyIndicatorServer("submitButton", {
       if (is.numeric(input$thin)) {
-        stop("Processing...")
+        stop("Please Waiting...")
       }
       })
       })

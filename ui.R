@@ -1,7 +1,7 @@
 
 library(shiny)
 library(shinyjs)
-
+library(shinycssloaders)
 
 ui<-fluidPage(
   shinyjs::useShinyjs(),
@@ -83,11 +83,11 @@ ui<-fluidPage(
                tabPanel("Prediction Summary",
                         hr(),
                         tableOutput("prediction"),
-                        plotOutput("predictionplot")
+                        withSpinner(plotOutput("predictionplot"),type=5,size=0.7)
                ),
                tabPanel("Diagnostic/Download",
                         hr(),
-                        downloadButton('downloadDiagPlot','Download diagnostic plot as PDF file'), 
+                        withSpinner(downloadButton('downloadDiagPlot','Download diagnostic plot as PDF file'),type=8,color=3,size=0.9), 
                         downloadButton('downloadPS','Download posterior results as CSV file'),
                         htmlOutput("diagplot")
                )
